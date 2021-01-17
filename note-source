@@ -1,8 +1,15 @@
-alias note-open="nohup gedit ~/gene-ws/note/note ~/gene-ws/note/note-init ~/gene-ws/note/note-source /usr/share/bash-completion/completions/notes > /dev/null 2>&1 &"
+alias note-open="subl ~/gene-ws/note/note* /usr/share/bash-completion/completions/notes"
 #### The following takes the underlying notes 
 if [ -f /usr/share/bash-completion/completions/notes ]; then
 . /usr/share/bash-completion/completions/notes
 else
-	echo Completion command for notes cmd was not found
+	echo notes cmd completion script not found at /usr/share/bash-completion/completions/notes
 fi
-complete -o filenames -o nospace -F _notes note # -o dirnames
+if [ -f ~/gene-ws/note/note-completion ]; then
+. ~/gene-ws/note/note-completion
+else
+	echo note cmd completion script not found at ~/gene-ws/note/note-completion
+fi
+complete -o nosort -F _note note # -o dirnames
+
+#complete -o filenames -o nospace -F _note note # -o dirnames

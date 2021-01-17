@@ -1,0 +1,33 @@
+#!/bin/bash
+###########
+
+_note_first_complete() # TODO this looks overly roundabout, scheme for a more clever approach
+{
+	    _notes_complete_commands "${1}" # use complete words from notes command
+	    COMPREPLY=("$(compgen -W "here" -- "${1}")" \  "${COMPREPLY[@]}") # prepend COMPREPLY with 'here ' if applicable
+        COMPREPLY2=( $(for arr in "${COMPREPLY[@]}"; do echo "${arr}"; done | sort) ) # alpha sort words into new array
+        COMPREPLY=() # clear array in prep for _filedir call
+        _filedir # helps complete dirs and files in a robust way
+        COMPREPLY=( $(for arr in "${COMPREPLY[@]}"; do echo "${arr}"; done | sort) ) # # alpha sort files/dirs
+        COMPREPLY=("${COMPREPLY2[@]}" "${COMPREPLY[@]}") # prepend files/dirs with words
+}
+
+_note()
+{
+    local cur
+    cur=${COMP_WORDS[COMP_CWORD]}
+    _notes
+
+    if [[ $COMP_CWORD -gt 1 ]]; then
+        case "${COMP_WORDS[1]}" in
+            here)
+            	_filedir
+            	COMPREPLY=( $(for arr in "${COMPREPLY[@]}"; do echo "${arr}"; done | sort) )
+                ;;
+        esac
+        [[ $COMPREPLY == */ ]] && compopt -o nospace
+    else
+    	_note_first_complete "$cur"
+    fi
+    return 0
+}

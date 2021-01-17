@@ -1,5 +1,12 @@
 #!/bin/bash
 ####
+#TODO: check for installation of bash-completion
+__check-cmd-exists() {
+	command -v "${1}" >/dev/null 2>&1 || { return 1; }
+}
+__echo-need-cmd() {
+echo "Installing \"note\" requires \"${1}\" to be installed." >&2
+}
 __note-init-func () {
 	local SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 	local DIR=$(dirname ${SCRIPTPATH}) # TODO hardcoded
@@ -15,26 +22,20 @@ __note-init-func () {
 		sudo ln -s "${SCRIPTPATH}"/note "${NOTE_SCR_PATH}" || return 1
 	fi
 	#### add line to .bash_aliases if needed to source NOTE_SRC
-	if [ ! -f "${FILE}" ]; then
-		echo "${FILE}" does not exist, creating... ; touch "${FILE}"
-	fi
+	[ ! -f "${FILE}" ] && echo "${FILE}" does not exist, creating... ; touch "${FILE}"
 	grep -qF -- "${LINE}" "${FILE}" || (echo -e "\n${LINE}" >> "${FILE}" && echo "${NOTE_SRC}" added to "${FILE}")
-	#### install notes if not installed already
-	for i in `seq 1 1`;
-	do # check for required commands for notes install
-		# todo check for bash-completion
-		type -P make &>/dev/null || (INSTALL_NOTES=0 && echo notes prereq: make command not installed && return 1)
-		type -P curl &>/dev/null || (INSTALL_NOTES=0 && echo notes prereq: curl command not installed && return 1)
-		type -P pkg-config &>/dev/null || (INSTALL_NOTES=0 && echo notes prereq: pkg-config command not installed && return 1)
-		(type -P notes &>/dev/null && INSTALL_NOTES=0 && break) || INSTALL_NOTES=1
-	done
-	if [ ${INSTALL_NOTES} == 1 ] ; then
-		echo notes installation will be attempted
+	#### check for required commands for notes install
+	__check-cmd-exists make || (__echo-need-cmd make; exit 1)
+	__check-cmd-exists curl || (__echo-need-cmd curl; exit 1)
+	__check-cmd-exists pkg-config || (__echo-need-cmd pkg-config; exit 1)
+	__check-cmd-exists notes || INSTALL_NOTES=1
+	if [ "${INSTALL_NOTES}" -eq 1 ]; then
+		echo "prerequisite \"notes\" for \"note\" installation will be attempted"
 		if [ -f ${DIR}/third-party/notes/install.sh ] ; then
-			chmod 755 ${DIR}/third-party/notes/install.sh # TODO make less hardcoded path
+			chmod 755 ${DIR}/third-party/notes/install.sh # TODO: hardcoded path
 			sudo bash ${DIR}/third-party/notes/install.sh
 		else
-			echo notes directory not installed or nothing at ${DIR}/third_party/notes/install.sh && return 1
+			echo "notes directory not installed or nothing at ${DIR}/third_party/notes/install.sh" && return 1
 		fi
 	fi
 	#### config file generation
@@ -44,6 +45,7 @@ __note-init-func () {
 	else # TODO take user input and/or make option to remove non symlink file
 		test -h "${NOTE_CNFG}" || (rm "${NOTE_CNFG}" ; sudo ln -s "${SCRIPTPATH}"/config "${NOTE_CNFG}")
 	fi
+	echo "${0} has finished installing successfully"
 }
 ####
 __note-init-func

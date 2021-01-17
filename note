@@ -23,7 +23,7 @@ check_dir() {
 chk_exi() { # check existence of file in givin path and open using $editor
 	if [ -f "${1}" ] ; then
 		echo "${1}"' exists, opening using '"${editor}"
-		nohup $editor $1 > /dev/null 2>&1 &
+		"${editor}" "${1}"
 		EXISTS=1
 	fi
 }
@@ -48,14 +48,14 @@ generate_note() { #TODO check subdirs, cleanup repetition. Check if 'notes find'
 		chk_exi "${notes_dir}"/[0-9][0-9]*-[0-9][0-9]*-[0-9]*-"${base}"*
 		if [ "${EXISTS}" == 1 ] ; then return 0 ; fi
 		echo Neither ./"${1}" or "${notes_dir}"/"${1}" exists, attempting open with "${editor}"
-		nohup notes new ${today}${base} > /dev/null 2>&1 &
+		notes new "${today}${base}"
 	else # notes_dir/any-date-$1.ext
 		if [ "${dir_status:3:1}" == 1 ] && [ ! "${dir_status:2:1}" == 1 ] ; then echo ./"${name_file}" not found, attempting gen at "${notes_dir}"/ ; fi
 		chk_exi "${notes_dir}"/"${dir}"[0-9][0-9]*-[0-9][0-9]*-[0-9]*-"${base}"*
 		if [ "${EXISTS}" == 1 ] ; then return 0 ; fi
 		echo Neither ./"${1}" or "${notes_dir}"/"${1}" exists, attempting open with "${editor}"
-		if [ "${dir_status:1:1}" == 1 ] ; then nohup notes new "${dir}${today}${base}" > /dev/null 2>&1 &
-		else echo Consider \'mkdir -p "${notes_dir}"/"${dir}"\' as dir does not exist. Aborting ; return 1 ; fi #TODO add force option
+		if [ "${dir_status:1:1}" == 1 ] ; then notes new "${dir}${today}${base}"
+		else echo Consider \'mkdir -p "${notes_dir}/${dir}"\' as dir does not exist. Aborting ; return 1 ; fi #TODO add force option
 	fi
 }
 note_func(){

@@ -1,82 +1,105 @@
 #!/bin/bash
 # TODO consider adding gen note ./ behavior
 # TODO completion in current directory for notes, perhaps here argument?
-# TODO Force editor generation in already open editor
+# TODO Wrap script in function to localize variables
+# TODO Replace most instances of $VAR with "${VAR}" to be more explicit with usage
+# TODO Wrap in function and cleanup functions at end
+# TODO investigate scoped functions to reduce name_clashing
+# TODO add error messages if sourcing fails
+# TODO force editor to open in one window via multiple tabs
 # set -e # use to make exits and returns abandon script. Investigate usage
 ####
 if [ -f ~/.config/notes/config ]; then . ~/.config/notes/config ; fi # config file for notes that the note cmd wraps
 if [ -f /usr/share/bash-completion/completions/notes ]; then . /usr/share/bash-completion/completions/notes ; fi
 check_dir() {
-	local dir="$(dirname "$1")" ; local echo_return=10000
-	if [ $dir == . ] ; then let echo_return=${echo_return}+1 ; fi
-	if [[ -d $dir ]] ; then let echo_return=${echo_return}+10 ; fi
-	if [[ -f $1 ]] ; then let echo_return=${echo_return}+100 ; fi # Check entire path b/c no gen'd files outside note_dir  
-	if [[ -d ${notes_dir}/$dir ]] ; then let echo_return=${echo_return}+1000 ; fi
-	if [ ! $echo_return == 10000 ] ; then echo $echo_return ; return 0; fi
- 	echo Neither $dir/ or ${notes_dir}/$dir exists. Aborting ; return 1 #TODO add force option
+	local dir="$(dirname "${1}")"
+	if [ "${dir}" == . ] ; then let dir_status="${dir_status}"+1 ; fi
+	if [[ -d "${dir}" ]] ; then let dir_status="${dir_status}"+10 ; fi
+	if [[ -f "${1}" ]] ; then let DIR_STATUS="${dir_status}"+100 ; fi # Check entire path b/c no gen'd files outside note_dir  
+	if [[ -d "${notes_dir}"/"${dir}" ]] ; then let dir_status="${dir_status}"+1000 ; fi
+	if [ ! "${dir_status}" == 10000 ] ; then return 0; fi
+ 	echo Neither "${dir}"/ or "${notes_dir}"/"${dir}" exists. Aborting ; return 1 #TODO add force option
 }
 chk_exi() { # check existence of file in givin path and open using $editor
-	if [ -f $1 ] ; then
-		echo $1 exists, opening using $editor
+	if [ -f "${1}" ] ; then
+		echo "${1}"' exists, opening using '"${editor}"
 		nohup $editor $1 > /dev/null 2>&1 &
-		exit 0
+		EXISTS=1
 	fi
 }
 generate_note() { #TODO check subdirs, cleanup repetition. Check if 'notes find' pipe into open is more succinct?
-	local name_file=$1 ; local dir=$(dirname "${name_file}")/
+	local EXISTS=0
+	local dir_status=10000 # The righmost 4 digits each indicate a status of a certain dir check
+	local name_file="${1}" ; local dir=$(dirname "${name_file}")/
 	local base=$(basename "${name_file}") ; local today=`date +%y-%m-%d-`
-	dir_status=$(check_dir ${name_file})
-	local exit_status=$?
-	echo $dir_status # TODO temp for debugging
-	if [ $exit_status == 1 ] ; then exit 1 ; fi
-	if [ "${dir_status:4:1}" == 1 ] || [ "${dir_status:3:1}" == 1 ] ; then chk_exi ${name_file} ; fi # ./$1 
-	if [ "${dir_status:1:1}" == 1 ] ; then chk_exi ${notes_dir}/${name_file} ; fi # notes_dir/$1
-	if [ "${dir_status:4:1}" == 1 ] ; then
-		chk_exi ${notes_dir}/[0-9][0-9]*-[0-9][0-9]*-[0-9]*-${base}* # notes_dir/date-$1.ext
-		echo Neither ./$1 or ${notes_dir}/$1 exists, attempting opening with $editor
-		nohup notes new ${today}${base} > /dev/null 2>&1 &
-	else
-		if [ "${dir_status:3:1}" == 1 ] && [ ! "${dir_status:2:1}" == 1 ] ; then echo ./$name_file not found, attempting gen at ${notes_dir}/ ; fi
-		chk_exi ${notes_dir}/${dir}[0-9][0-9]*-[0-9][0-9]*-[0-9]*-${base}* # Check $1 with any date in notes dir
-		echo Neither ./$1 or ${notes_dir}/$1 exists, attempting opening with $editor
-		if [ "${dir_status:1:1}" == 1 ] ; then nohup notes new ${dir}${today}${base} > /dev/null 2>&1 &
-		else echo Consider \'mkdir -p ${notes_dir}/${dir}\' as dir does not exist. Aborting ; exit 1 ; fi #TODO add force option
+	check_dir "${name_file}"
+	if [ "${?}" == 1 ] ; then echo "${dir_status}" ; return 1 ; fi
+	# echo "${dir_status}" # TODO temp for debugging, leave in for now
+	####
+	if [ "${dir_status:4:1}" == 1 ] || [ "${dir_status:3:1}" == 1 ] ; then  # ./$1
+		chk_exi "${name_file}" # $1
+		if [ "${EXISTS}" == 1 ] ; then return 0 ; fi
 	fi
-	exit 0
+	if [ "${dir_status:1:1}" == 1 ] ; then # notes_dir/$1
+		chk_exi "${notes_dir}"/"${name_file}"
+		if [ "${EXISTS}" == 1 ] ; then return 0 ; fi
+	fi
+	if [ "${dir_status:4:1}" == 1 ] ; then # notes_dir/date-$1.ext else 
+		chk_exi "${notes_dir}"/[0-9][0-9]*-[0-9][0-9]*-[0-9]*-"${base}"*
+		if [ "${EXISTS}" == 1 ] ; then return 0 ; fi
+		echo Neither ./"${1}" or "${notes_dir}"/"${1}" exists, attempting open with "${editor}"
+		nohup notes new ${today}${base} > /dev/null 2>&1 &
+	else # notes_dir/any-date-$1.ext
+		if [ "${dir_status:3:1}" == 1 ] && [ ! "${dir_status:2:1}" == 1 ] ; then echo ./"${name_file}" not found, attempting gen at "${notes_dir}"/ ; fi
+		chk_exi "${notes_dir}"/"${dir}"[0-9][0-9]*-[0-9][0-9]*-[0-9]*-"${base}"*
+		if [ "${EXISTS}" == 1 ] ; then return 0 ; fi
+		echo Neither ./"${1}" or "${notes_dir}"/"${1}" exists, attempting open with "${editor}"
+		if [ "${dir_status:1:1}" == 1 ] ; then nohup notes new "${dir}${today}${base}" > /dev/null 2>&1 &
+		else echo Consider \'mkdir -p "${notes_dir}"/"${dir}"\' as dir does not exist. Aborting ; return 1 ; fi #TODO add force option
+	fi
 }
-NOTE_INDEX=0
-declare -a NOTE_ARGS
-for i in $@; do 
-	NOTE_ARGS[${NOTE_INDEX}]=$i
-    let NOTE_INDEX=${NOTE_INDEX}+1
-done
-#### variables
-editor=$EDITOR
-notes_dir=$NOTES_DIRECTORY
-file_explorer=xdg-open
-note_comm=${NOTE_ARGS[0]} # TODO Use array for auto piping several arguments into relevant commands
-#### no argument supplied means open note directory
-if [ $# == 0 ] ; then
-	nohup ${file_explorer} ${notes_dir} > /dev/null 2>&1 &
-	exit 0
-fi
-#### usage of new/open generates a file with sortable date format or opens file if exists
-if [ $note_comm == new ] || [ $note_comm == n ] || [ $note_comm == open ] || [ $note_comm == o ] ; then
-	generate_note $2
-fi
-#### ls/find/grep/search/rm/cat function exactly as they do in vanilla notes
-if [ $note_comm == ls ] || [ $note_comm == find ] || [ $note_comm == f ] || [ $note_comm == grep ] || [ $note_comm == g ] || [ $note_comm == search ] || [ $note_comm == s ] || [ $note_comm == rm ] || [ $note_comm == cat ] ; then
-	notes $@ && exit 0
-	exit 1
-fi
-#### help
-if [ $note_comm == --help ] || [ $note_comm == -h ] ; then
-	echo help #TODO generate help 
-	notes --help
-	exit 0
-fi
-#### If one arg given and not one of new/open/ls/find/grep/search/rm/cat then default to using given arg alongside 'new' arg
-if [ $# == 1 ] ; then
-	generate_note $1
-fi
-echo You have entered an unexpected argument list, please notify Eugene Ayoub via acegene22@gmail.com if you feel this is unintended behavior
+note_func(){
+	#### variables
+	local NOTE_INDEX=0
+ 	declare -a local NOTE_ARGS ; for i in "${@}"; do NOTE_ARGS["${NOTE_INDEX}"]="${i}" ; let NOTE_INDEX="${NOTE_INDEX}"+1 ; done
+	local editor="${EDITOR}"
+	local notes_dir="${NOTES_DIRECTORY}"
+	local file_explorer=xdg-open
+	local note_comm="${NOTE_ARGS[0]}"
+	#### no argument supplied means open note directory
+	if [ "${#}" == 0 ] ; then
+		nohup "${file_explorer}" "${notes_dir}" > /dev/null 2>&1 &
+		return 0
+	fi
+	#### usage of new/open generates a file with sortable date format or opens file if exists
+	if [ "${note_comm}" == new ] || [ "${note_comm}" == n ] || [ "${note_comm}" == open ] || [ "${note_comm}" == o ] ; then
+		NOTE_ARGS=("${NOTE_ARGS[@]:1}") ; NOTE_INDEX=0
+		for i in "${NOTE_ARGS[@]}"; do generate_note "${i}" ; let NOTE_INDEX="${NOTE_INDEX}"+1 ; done
+		return 0
+	fi
+	#### ls/find/grep/search/rm/cat function exactly as they do in vanilla notes
+	if [ "${note_comm}" == ls ] || [ "${note_comm}" == find ] || [ "${note_comm}" == f ] || [ "${note_comm}" == grep ] || [ "${note_comm}" == g ] || [ "${note_comm}" == search ] || [ "${note_comm}" == s ] || [ "${note_comm}" == rm ] || [ "${note_comm}" == cat ] ; then
+		notes "${@}" && return 0
+		return 1
+	fi
+	#### help
+	if [ "${note_comm}" == --help ] || [ "${note_comm}" == -h ] ; then
+		cat note-help
+		notes --help
+		return 0
+	fi
+	#### If one arg given and not one of new/open/ls/find/grep/search/rm/cat then default to using given arg alongside 'new' arg
+	if [ "${#}" == 1 ] ; then
+		generate_note "${1}"
+	else
+		echo Arguments unrecognized, assuming all are names of files to open/generate...
+		NOTE_INDEX=0
+		for i in "${NOTE_ARGS[@]}"; do generate_note "${i}" ; let NOTE_INDEX="${NOTE_INDEX}"+1 ; done
+	fi
+}
+note_func "${@}" ;
+#### Cleanup # TODO can be improved via scoping
+unset -f chk_exi
+unset -f check_dir
+unset -f generate_note
+unset -f note-func

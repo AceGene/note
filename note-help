@@ -1,0 +1,12 @@
+note is a command line note taking tool that wraps the notes command.
+	notes has source https://github.com/pimterry/notes
+
+Usage includes those of the notes cmd below by replacing any instance of 'notes' with 'note'.
+	'new' and 'open' now search current dir and follow date-name.ext format.
+
+Added Usage:
+    note       				  # Open notes directory
+    note <name>				  # Open file if exists, or create as NOTEDIR/date-name.ext
+
+########################################
+

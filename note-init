@@ -3,16 +3,16 @@
 __note-init-func () {
 	local SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 	local DIR=$(dirname ${SCRIPTPATH}) # TODO hardcoded
-	local NOTE_SCR_PATH=~/'bin/note'
+	local NOTE_SCR_PATH='/usr/local/bin/note'
 	local NOTE_CNFG=~/'.config/notes/config'
 	local NOTE_SRC=note-source
-	local LINE='[ -f '"${SCRIPTPATH}"'/'"${NOTE_SRC}"' ] && . '"${SCRIPTPATH}"/"${NOTE_SRC}; PATH="'${PATH}:~/'"bin"
+	local LINE='[ -f '"${SCRIPTPATH}"'/'"${NOTE_SRC}"' ] && . '"${SCRIPTPATH}"/"${NOTE_SRC}"
 	local FILE=~/.bash_aliases
 	local INSTALL_NOTES=0
 	#### place note cmd script somewhere in PATH
 	if [ ! -f "${NOTE_SCR_PATH}" ]; then
 		echo "${NOTE_SCR_PATH}" does not exist, creating...
-		sudo ln -s "${SCRIPTPATH}"/note "${NOTE_SCR_PATH} " || return 1
+		sudo ln -s "${SCRIPTPATH}"/note "${NOTE_SCR_PATH}" || return 1
 	fi
 	#### add line to .bash_aliases if needed to source NOTE_SRC
 	if [ ! -f "${FILE}" ]; then

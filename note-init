@@ -25,9 +25,9 @@ __note-init-func () {
 	[ ! -f "${FILE}" ] && echo "${FILE}" does not exist, creating... ; touch "${FILE}"
 	grep -qF -- "${LINE}" "${FILE}" || (echo -e "\n${LINE}" >> "${FILE}" && echo "${NOTE_SRC}" added to "${FILE}")
 	#### check for required commands for notes install
-	__check-cmd-exists make || (__echo-need-cmd make; exit 1)
-	__check-cmd-exists curl || (__echo-need-cmd curl; exit 1)
-	__check-cmd-exists pkg-config || (__echo-need-cmd pkg-config; exit 1)
+	__check-cmd-exists make || ! __echo-need-cmd make || exit 1
+	__check-cmd-exists curl || ! __echo-need-cmd curl || exit 1
+	__check-cmd-exists pkg-config || ! __echo-need-cmd pkg-config || exit 1
 	__check-cmd-exists notes || INSTALL_NOTES=1
 	if [ "${INSTALL_NOTES}" -eq 1 ]; then
 		echo "prerequisite \"notes\" for \"note\" installation will be attempted"
